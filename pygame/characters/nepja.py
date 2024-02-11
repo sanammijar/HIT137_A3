@@ -1,345 +1,245 @@
-import pygame as pg
+import pygame
+from pygame.locals import *
 import os
-vector = pg.math.Vector2
+import random
 
-class Player(pg.sprite.Sprite):
+pygame.init()
 
-    def __init__(self, x, y):
-        pg.sprite.Sprite.__init__(self)
-        self.winWidth = 500
-        self.winLength = 281
-        # movement of player
-        self.pressKey = pg.key.get_pressed()
-        self.speed = 0.8
-        # velocity of player
-        self.velocity = vector(0, 0)
-        self.acc = vector(0, 0)
-        self.pos = vector(x, y)
-        self.fric = -0.15
-        # rect of player
-        path_to_idle = '../images/Ninja/Right/idle/R_idle_1.png'
-        self.image = pg.image.load(path_to_idle).convert_alpha()
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
-        self.isDownR = False
-        self.isDownL = False
-        self.isRunR = False
-        self.isRunL = False
-        self.isJump = False
-        self.isUpR = False
-        self.isUpL = False
-        self.isIdle = True
-        self.isAtck = False
-        self.isL = False
-        self.isR = True
-        self.isHurt = False
-        self.isDead = False
-        self.jumpC = 7
-        self.walkC = 0
-        self.runC = 0
-        self.idle = 0
-        self.atckUC = 0
-        self.atckC = 0
-        # formerly hrtC
-        self.hurtCount = 0
-        # formerly dthC
-        self.deathCount = 0
-        self.atckIsK = False
-        self.atckIsI = False
-        self.atckIsL = False
+W, H = 800, 437
+win = pygame.display.set_mode((W,H))
+pygame.display.set_caption('Side Scroller')
 
-    def update(self):
-        self.animation()
-        # ============
-        # KEYS INPUT
-        # ============
-        self.acc = vector(0, 0)
-        if not self.isDead:
-            if self.pressKey[pg.K_d] or self.pressKey[pg.K_RIGHT]:
-                self.acc.x = self.speed
-                self.isR = True
-                self.isL = False
-                self.isIdle = False
-                self.isRunL = False
-                self.isRunR = False
-                self.isAtck = False
-                self.atckC = 0
-                self.atckUC = 0
-            elif (self.pressKey[pg.K_s] or self.pressKey[pg.K_DOWN]):
-                self.acc.x = self.speed * 2
-                self.isR = False
-                self.isL = False
-                self.isRunR = True
-                self.isIdle = False
-                self.isRunL = False
-                self.isAtck = False
-                self.atckC = 0
-                self.atckUC = 0
-            elif self.pressKey[pg.K_k]:
-                self.isAtck = True
-                self.atckIsK = True
-                self.atckIsL = False
-                self.atckIsI = False
-                self.isIdle = False
-            elif self.pressKey[pg.K_i]:
-                self.isAtck = True
-                self.atckIsI = True
-                self.atckIsK = False
-                self.atckIsL = False
-                self.isIdle = False
-            elif self.pressKey[pg.K_l]:
-                self.isAtck = True
-                self.atckIsL = True
-                self.atckIsI = False
-                self.atckIsK = False
-                self.isIdle = False
-            else:
-                self.idle += 1
-                self.isIdle = True
-                self.isAtck = False
-                self.atckIsI = False
-                self.atckIsK = False
-                self.atckIsL = False
+bg = pygame.image.load(os.path.join('images', 'bg.png')).convert()
+bgX = 0
+bgX2 = bg.get_width()
 
-            # applies friction
-            self.acc += self.velocity * self.fric
+clock = pygame.time.Clock()
 
-            # equations of motion
-            self.velocity += self.acc
-            self.pos += self.velocity + 0.5 * self.acc
+class player(object):
+    run = [pygame.image.load(os.path.join('images', str(x) + '.png')) for x in range(8, 16)]
+    jump = [pygame.image.load(os.path.join('images', str(x) + '.png')) for x in range(1, 8)]
+    slide = [pygame.image.load(os.path.join('images', 'S1.png')), pygame.image.load(os.path.join('images', 'S2.png')), pygame.image.load(os.path.join('images', 'S2.png')), pygame.image.load(os.path.join('images', 'S2.png')), pygame.image.load(os.path.join('images', 'S2.png')),pygame.image.load(os.path.join('images', 'S2.png')), pygame.image.load(os.path.join('images', 'S2.png')), pygame.image.load(os.path.join('images', 'S2.png')), pygame.image.load(os.path.join('images', 'S3.png')), pygame.image.load(os.path.join('images', 'S4.png')), pygame.image.load(os.path.join('images', 'S5.png'))]
+    fall = pygame.image.load(os.path.join('images', '0.png'))
+    jumpList = [1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-2,-2,-2,-2,-2,-2,-2,-2,-2,-2,-2,-2,-3,-3,-3,-3,-3,-3,-3,-3,-3,-3,-3,-3,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4]
 
-            # changing screens
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.jumping = False
+        self.sliding = False
+        self.falling = False
+        self.slideCount = 0
+        self.jumpCount = 0
+        self.runCount = 0
+        self.slideUp = False
 
-            if self.pos.x <= 10:
-                self.pos.x = 40
-                self.isR = True
-                self.isL = False
+    def draw(self, win):
+        if self.falling:
+            win.blit(self.fall, (self.x, self.y + 30))
+        elif self.jumping:
+            self.y -= self.jumpList[self.jumpCount] * 1.3
+            win.blit(self.jump[self.jumpCount//18], (self.x, self.y))
+            self.jumpCount += 1
+            if self.jumpCount > 108:
+                self.jumpCount = 0
+                self.jumping = False
+                self.runCount = 0
+            self.hitbox = (self.x+ 4, self.y, self.width-24, self.height-10)
+        elif self.sliding or self.slideUp:
+            if self.slideCount < 20:
+                self.y += 1
+                self.hitbox = (self.x+ 4, self.y, self.width-24, self.height-10)
+            elif self.slideCount == 80:
+                self.y -= 19
+                self.sliding = False
+                self.slideUp = True
+            elif self.slideCount > 20 and self.slideCount < 80:
+                self.hitbox = (self.x, self.y+3, self.width-8, self.height-35)
 
-            # changing position
-            self.rect.center = self.pos
+            if self.slideCount >= 110:
+                self.slideCount = 0
+                self.runCount = 0
+                self.slideUp = False
+                self.hitbox = (self.x+ 4, self.y, self.width-24, self.height-10)
+            win.blit(self.slide[self.slideCount//10], (self.x, self.y))
+            self.slideCount += 1
 
-            # ==============
-            # JUMPING
-            # ==============
+        else:
+            if self.runCount > 42:
+                self.runCount = 0
+            win.blit(self.run[self.runCount//6], (self.x,self.y))
+            self.runCount += 1
+            self.hitbox = (self.x+ 4, self.y, self.width-24, self.height-13)
 
-            if not self.isJump:
-                if self.pressKey[pg.K_j] or self.pressKey[pg.K_SPACE]:
-                    self.isJump = True
-                    self.isIdle = False
-                    self.walkC = 0
-                    self.runC = 0
-                    self.atckC = 0
-                    self.atckUC = 0
-            else:
-                if self.jumpC >= -7:
-                    n = 1
-                    self.isUpR = True
-                    self.isUpL = True
-                    self.isDownR = False
-                    self.isDownL = False
-                    self.isIdle = False
-                    if self.jumpC < 0:
-                        n = -1
-                        self.isDownR = True
-                        self.isDownL = True
-                        self.isUpR = False
-                        self.isUpL = False
-                        self.isIdle = False
-                    self.pos.y -= ((self.jumpC ** 2) / 2) * n
-                    self.jumpC -= 1
-                else:
-                    self.idle = 0
-                    self.isJump = False
-                    self.jumpC = 7
-                    self.isIdle = True
-                    self.isDownR = False
-                    self.isUpR = False
-                    self.isDownL = False
-                    self.isUpL = False
+        #pygame.draw.rect(win, (255,0,0),self.hitbox, 2)
 
-    def animation(self):
-        # Moving Right
-        right_walk_path = '../images/Ninja/Right/walk'
-        right_jump_path = '../images/Ninja/Right/jump'
-        right_idle_path = '../images/Ninja/Right/idle'
-        right_death_path = '../images/Ninja/Right/death'
-        right_hurt_path = '../images/Ninja/Right/hurt'
-        right_run_path = '../images/Ninja/Right/run'
+class saw(object):
+    rotate = [pygame.image.load(os.path.join('images', 'SAW0.png')), pygame.image.load(os.path.join('images', 'SAW1.png')), pygame.image.load(os.path.join('images', 'SAW2.png')), pygame.image.load(os.path.join('images', 'SAW3.png'))]
 
-        self.death_right = []
-        self.walk_right = []
-        self.jump_right = []
-        self.idle_right = []
-        self.hurt_right = []
-        self.run_right = []
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.rotateCount = 0
+        self.vel = 1.4
 
-        for motion in sorted(os.listdir(right_walk_path)):
-            image = '{}/{}'.format(right_walk_path, motion)
-            self.walk_right.append(pg.image.load(image).convert_alpha())
+    def draw(self, win):
+        self.hitbox = (self.x + 10, self.y + 5, self.width - 20, self.height - 5)
+        # pygame.draw.rect(win, (255,0,0), self.hitbox, 2)
+        if self.rotateCount >= 8:
+            self.rotateCount = 0
+        win.blit(pygame.transform.scale(self.rotate[self.rotateCount//2], (64,64)), (self.x,self.y))
+        self.rotateCount += 1
 
-        for motion in sorted(os.listdir(right_jump_path)):
-            image = '{}/{}'.format(right_jump_path, motion)
-            self.jump_right.append(pg.image.load(image).convert_alpha())
+    def collide(self, rect):
+        if rect[0] + rect[2] > self.hitbox[0] and rect[0] < self.hitbox[0] + self.hitbox[2]:
+            if rect[1] + rect[3] > self.hitbox[1]:
+                return True
+        return False
 
-        for motion in sorted(os.listdir(right_idle_path)):
-            image = '{}/{}'.format(right_idle_path, motion)
-            self.idle_right.append(pg.image.load(image).convert_alpha())
 
-        for motion in sorted(os.listdir(right_death_path)):
-            image = '{}/{}'.format(right_death_path, motion)
-            self.death_right.append(pg.image.load(image).convert_alpha())
+class spike(saw):
+    img = pygame.image.load(os.path.join('images', 'spike.png'))
 
-        for motion in sorted(os.listdir(right_hurt_path)):
-            image = '{}/{}'.format(right_hurt_path, motion)
-            self.hurt_right.append(pg.image.load(image).convert_alpha())
+    def draw(self, win):
+        self.hitbox = (self.x + 10, self.y, 28,315)
+        # pygame.draw.rect(win, (255,0,0), self.hitbox, 2)
+        win.blit(self.img, (self.x, self.y))
 
-        for motion in sorted(os.listdir(right_run_path)):
-            image = '{}/{}'.format(right_run_path, motion)
-            self.run_right.append(pg.image.load(image).convert_alpha())
+    def collide(self, rect):
+        if rect[0] + rect[2] > self.hitbox[0] and rect[0] < self.hitbox[0] + self.hitbox[2]:
+            if rect[1] < self.hitbox[3]:
+                return True
+        return False
 
-        # self.run_right=(pg.image.load(right_walk_path).convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_run_2.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_run_3.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_run_4.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_run_5.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_run_6.png').convert_alpha())
-        # self.walk_right=(pg.image.load(right_walk_path).convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_walk_2.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_walk_3.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_walk_4.png').convert_alpha())
-        # self.idle_right=(pg.image.load(right_walk_path).convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_idle_2.png').convert_alpha())
-        # self.jump_right=(pg.image.load(right_walk_path).convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_land.png').convert_alpha())
-#         # # Damage
-#         # self.death_right=(pg.image.load(right_walk_path).convert_alpha(),
-#         #     pg.image.load('../images/Ninja/R_death_2.png').convert_alpha(),
-#         #     pg.image.load('../images/Ninja/R_death_3.png').convert_alpha(),
-#         #     pg.image.load('../images/Ninja/R_death_4.png').convert_alpha(),
-#         #     pg.image.load('../images/Ninja/R_death_5.png').convert_alpha(),
-#         #     pg.image.load('../images/Ninja/R_death_6.png').convert_alpha(),
-#         #     pg.image.load('../images/Ninja/R_death_7.png').convert_alpha(),
-        #     pg.image.load('../images/Ninja/R_death_8.png').convert_alpha())
 
-        if not self.isDead:
+def updateFile():
+    f = open('scores.txt','r')
+    file = f.readlines()
+    last = int(file[0])
 
-            if not self.isIdle:
+    if last < int(score):
+        f.close()
+        file = open('scores.txt', 'w')
+        file.write(str(score))
+        file.close()
 
-                if not self.isJump:
+        return score
 
-                    if not self.isAtck:
-                        self.direction()
-                    elif self.isAtck:
+    return last
 
-                        self.attack()
 
-                elif self.isJump:
-                    self.jump()
-            elif self.isIdle:
-                #  self.idle()
-                if self.isR or self.isRunR or self.isAtck:
-                    self.image = self.idle_right[self.idle // 7]
 
-                if self.idle >= 13:
-                    self.idle = 0
-        elif self.isDead:
-            self.death_right()
+def endScreen():
+    global pause, score, speed, obstacles
+    pause = 0
+    speed = 30
+    obstacles = []
 
-    def attack(self):
-        # Attacking Right
-        right_attack_path = '../images/Ninja/Right/attack'
+    run = True
+    while run:
+        pygame.time.delay(100)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                run = False
+                runner.falling = False
+                runner.sliding = False
+                runner.jumpin = False
 
-        self.attack_right = []
+        win.blit(bg, (0,0))
+        largeFont = pygame.font.SysFont('comicsans', 80)
+        lastScore = largeFont.render('Best Score: ' + str(updateFile()),1,(255,255,255))
+        currentScore = largeFont.render('Score: '+ str(score),1,(255,255,255))
+        win.blit(lastScore, (W/2 - lastScore.get_width()/2,150))
+        win.blit(currentScore, (W/2 - currentScore.get_width()/2, 240))
+        pygame.display.update()
+    score = 0
 
-        for motion in sorted(os.listdir(right_attack_path)):
-            image = '{}/{}'.format(right_attack_path, motion)
-            self.attack_right.append(pg.image.load(image).convert_alpha())
+def redrawWindow():
+    largeFont = pygame.font.SysFont('comicsans', 30)
+    win.blit(bg, (bgX, 0))
+    win.blit(bg, (bgX2,0))
+    text = largeFont.render('Score: ' + str(score), 1, (255,255,255))
+    runner.draw(win)
+    for obstacle in obstacles:
+        obstacle.draw(win)
 
-        # self.attack_right=(pg.image.load('right_attack_path').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_2.png').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_4.png').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_6.png').convert_alpha())
-        # self.medAtckR=(pg.image.load('right_attack_path').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_2.png').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_5.png').convert_alpha())
-        # self.strngAtckR=(pg.image.load('right_attack_path').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_2.png').convert_alpha(),
-        # pg.image.load('../images/Ninja/R_attack_3.png').convert_alpha())
+    win.blit(text, (700, 10))
+    pygame.display.update()
 
-        # ===========
-        # ACTIONS
-        # ===========
 
-        if self.atckIsK:
-            self.image = self.attack_right[self.atckC // 1]
-            self.rect = self.image.get_rect()
+pygame.time.set_timer(USEREVENT+1, 500)
+pygame.time.set_timer(USEREVENT+2, 3000)
+speed = 30
 
-            self.atckC += 1
-            if self.atckC >= 4:
-                self.atckC = 0
+score = 0
 
-        elif self.atckIsI:
-            self.image = self.attack_right[self.atckUC // 1]
-            self.rect = self.image.get_rect()
+run = True
+runner = player(200, 313, 64, 64)
 
-            self.atckUC += 1
-            if self.atckUC >= 4:
-                self.atckUC = 0
+obstacles = []
+pause = 0
+fallSpeed = 0
 
-        elif self.atckIsL:
-            self.image = self.attack_right[self.atckUC // 1]
-            self.rect = self.image.get_rect()
-            self.atckUC += 1
-            if self.atckUC >= 4:
-                self.atckUC = 0
+while run:
+    if pause > 0:
+        pause += 1
+        if pause > fallSpeed * 2:
+            endScreen()
 
-    # # #  NEW # # #
-    def direction(self):
-        if self.isL:
-            self.image = self.walkL[self.walkC // 3]
-            self.walkC += 1
-            if self.walkC >= 12:
-                self.walkC = 0
-        elif self.isR:
-            self.image = self.walk_right[self.walkC // 3]
-            self.walkC += 1
-            if self.walkC >= 12:
-                self.walkC = 0
-        elif self.isRunL:
-            self.image = self.runL[self.runC // 2]
-            self.runC += 1
-            if self.runC >= 12:
-                self.runC = 0
-        elif self.isRunR:
-            self.image = self.run_right[self.runC // 2]
-            self.runC += 1
-            if self.runC >= 12:
-                self.runC = 0
+    score = speed//10 - 3
 
-    def jump(self):
-        if self.isR or self.isRunR:
-            if self.isUpR:
-                self.image = self.jump_right[0]
-            elif self.isDownR:
-                self.image = self.jump_right[1]
-        elif self.isL or self.isRunL:
-            if self.isUpL:
-                self.image = self.jumpL[0]
-            elif self.isDownL:
-                self.image = self.jumpL[1]
+    for obstacle in obstacles:
+        if obstacle.collide(runner.hitbox):
+            runner.falling = True
 
-    def idle(self):
-        if self.isR or self.isRunR or self.isAtck:
-            self.image = self.idle_right[self.idle // 7]
-        elif self.isL or self.isRunL or self.isAtck:
-            self.image = self.ninL[self.idle // 7]
+            if pause == 0:
+                pause = 1
+                fallSpeed = speed
+        if obstacle.x < -64:
+            obstacles.pop(obstacles.index(obstacle))
+        else:
+            obstacle.x -= 1.4
 
-        if self.idle >= 13:
-            self.idle = 0
+    bgX -= 1.4
+    bgX2 -= 1.4
 
-    def dead(self):
-        self.image = self.death_right[self.runC // 2]
-        self.image = self.death_right[7]
-        self.dthC += 1 * 2
-        if self.dthC >= 16:
-            self.dthC = 0
+    if bgX < bg.get_width() * -1:
+        bgX = bg.get_width()
+    if bgX2 < bg.get_width() * -1:
+        bgX2 = bg.get_width()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            run = False
+
+        if event.type == USEREVENT+1:
+            speed += 1
+
+        if event.type == USEREVENT+2:
+            r = random.randrange(0,2)
+            if r == 0:
+                obstacles.append(saw(810, 310, 64, 64))
+            elif r == 1:
+                obstacles.append(spike(810, 0, 48, 310))
+
+    if runner.falling == False:
+        keys = pygame.key.get_pressed()
+
+        if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
+            if not(runner.jumping):
+                runner.jumping = True
+
+        if keys[pygame.K_DOWN]:
+            if not(runner.sliding):
+                runner.sliding = True
+
+    clock.tick(speed)
+    redrawWindow()
